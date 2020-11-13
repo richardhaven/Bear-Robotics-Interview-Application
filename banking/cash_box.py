@@ -3,7 +3,7 @@ def cash_out(amount):
 
 # @retuns the amount and the audit id for the transaction, or it returns zero, None if cancelled
 def cash_in():
-	pass
+    pass
 
 def abort_cash_in():
     pass
