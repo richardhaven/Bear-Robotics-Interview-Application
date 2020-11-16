@@ -4,14 +4,13 @@ from auz import check_access
 
 from sessions import get_session_info, update_session_id
 
-from infrastructure import log_api_exception, compose_error_message,
-                           InactiveSessionError, InternalError
+from infrastructure import log_api_exception, compose_error_message, InactiveSessionError, InternalError
 
 def get_account_list(session_id):
-	session_info = get_session_info(session_id)
+    session_info = get_session_info(session_id)
 
-	if session_info is None or not session_info.active:
-		raise InactiveSessionError()
+    if session_info is None or not session_info.active:
+        raise InactiveSessionError()
 
     check_access(session_info, "get_account_list")
 
@@ -36,11 +35,11 @@ def process_account_list_call(session_info, bank_api):
         log_api_exception(session_info, e)
         raise InternalError.from_exception(session_info, e)
 
-    if call_response.has_failed():
-        log_failure_metrics("get_accounts", session_info, call_response)
+    if call_response.has_failed:
+        log_api_failure("get_accounts", session_info, call_response)
 
         error_message = compose_error_message("get_accounts", call_response)
-        raise API_Error(error_message)
+        raise InternalError(error_message)
 
 
 

@@ -1,4 +1,4 @@
-class InsufficientAccessError(Exceptino):
+class InsufficientAccessError(Exception):
 	pass
 
 def check_access(session_info, context, *args, **kwargs):

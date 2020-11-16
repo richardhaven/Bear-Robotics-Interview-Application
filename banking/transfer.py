@@ -2,11 +2,11 @@ from bank_api import Bank_API
 
 from auz import check_access
 
-from sessions import get_session_info, update_session_id
+from sessions import get_session_info, update_session_id, InactiveSessionError
 
-from infrastructure import log_api_exception, log_withdrawl, log_deposit,
-                           signal_critical_alert, compose_error_message,
-                           InactiveSessionError, InternalError, InvalidAmountError
+from infrastructure import log_api_exception, log_withdrawl, log_deposit
+from infrastructure import signal_critical_alert, compose_error_message
+from infrastructure import InternalError, InvalidAmountErro
 
 from cash_box import cash_out
 
@@ -14,10 +14,10 @@ def transfer(session_id, source_account_id, target_account_id, amount):
     if amount <= 0 or (not (amount + 0.0).is_integer()):
         raise InvalidAmountError()
 
-	session_info = get_session_info(session_id)
+    session_info = get_session_info(session_id)
 
-	if session_info is None or not session_info.active:
-		raise InactiveSessionError()
+    if session_info is None or not session_info.active:
+        raise InactiveSessionError()
 
     check_access(session_info, "transfer_out", source_account_id)
     check_access(session_info, "transfer_in", target_account_id)
@@ -41,6 +41,7 @@ def process_transfer(session_info, source_account_id, target_account_id, amount,
         process_cash_in_call(session_info, account_id, amount, bank_api)
 
         process_transfer_out_confirmation(session_info, pending_withdrawl_token, bank_api)
+
         pending_withdrawl_token = None
     finally:
         if pending_withdrawl_token is not None:
@@ -54,11 +55,11 @@ def get_pending_api_token(session_info, account_id, amount, bank_api):
         log_api_exception("distribute_cash", session_info, e)
         raise InternalError.from_exception(session_info, e)
 
-    if call_response.has_failed():
-        log_failure_metrics("start_cash_out", session_info, call_response)
+    if call_response.has_failed:
+        log_api_failure("start_cash_out", session_info, call_response)
 
         error_message = compose_error_message("start_cash_out", call_response)
-        raise API_Error(error_message)
+        raise InternalError(error_message)
 
     if call_response.error is not None:
         raise InvalidAmountError()
@@ -66,33 +67,33 @@ def get_pending_api_token(session_info, account_id, amount, bank_api):
     return call_response.withdrawl_authorization_id
 
 
-def process_cash_out_confirmation(session_info, pending_distribution_token, bank_api)
+def process_cash_out_confirmation(session_info, pending_distribution_token, bank_api):
     try:
         call_response = bank_api.confirm_cash_out(pending_distribution_token)
 
     except Exception as e:
         log_api_exception("confirm_cash_out", session_info, e)
-        raise InternalError.from_exception(session_info, e)
+        raise InternalError.from_exception("confirm_cash_out", session_info, e)
 
-    if call_response.has_failed():
-        log_failure_metrics("confirm_cash_out", session_info, call_response)
+    if call_response.has_failed:
+        log_api_failure("confirm_cash_out", session_info, call_response)
 
         error_message = compose_error_message("confirm_cash_out", call_response)
-        raise API_Error(error_message)
+        raise InternalError(error_message)
 
-def process_cash_in_call(session_info, account_id, amount, bank_api)
+def process_cash_in_call(session_info, account_id, amount, bank_api):
     try:
         call_response = bank_api.confirm_cash_in(session_info.api_session_id, account_id, amount)
 
     except Exception as e:
-        log_api_exception("confirm_cash_out", session_info, e)
-        raise InternalError.from_exception(session_info, e)
+        log_api_exception("confirm_cash_in", session_info, e)
+        raise InternalError.from_exception("confirm_cash_in", session_info, e)
 
-    if call_response.has_failed():
-        log_failure_metrics("confirm_cash_out", session_info, call_response)
+    if call_response.has_failed:
+        log_api_failure("confirm_cash_in", session_info, call_response)
 
-        error_message = compose_error_message("confirm_cash_out", call_response)
-        raise API_Error(error_message)
+        error_message = compose_error_message("confirm_cash_in", call_response)
+        raise InternalError(error_message)
 
     if call_response.error is not None:
         raise InvalidAmountError()
